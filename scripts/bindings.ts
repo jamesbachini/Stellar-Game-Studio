@@ -93,7 +93,18 @@ for (const contract of contractsToBind) {
   const contractId = contractIds[contract.packageName];
   console.log(`Generating bindings for ${contract.packageName}...`);
   try {
-    await $`stellar contract bindings typescript --contract-id ${contractId} --output-dir ${contract.bindingsOutDir} --network testnet --overwrite`;
+    let success = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await $`stellar contract bindings typescript --contract-id ${contractId} --output-dir ${contract.bindingsOutDir} --rpc-url ${rpcUrl} --network-passphrase ${networkPassphrase} --overwrite`;
+        success = true;
+        break;
+      } catch (e) {
+        if (attempt === 5) throw e;
+        console.log(`  ⏳ RPC indexing contract, retrying in 3s (attempt ${attempt}/5)...`);
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
     console.log(`✅ ${contract.packageName} bindings generated\n`);
   } catch (error) {
     console.error(`❌ Failed to generate ${contract.packageName} bindings:`, error);
