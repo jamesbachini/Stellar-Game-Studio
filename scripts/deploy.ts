@@ -86,7 +86,7 @@ async function ensureTestnetFunded(address: string): Promise<void> {
 async function testnetContractExists(contractId: string): Promise<boolean> {
   const tmpPath = join(tmpdir(), `stellar-contract-${contractId}.wasm`);
   try {
-    await $`stellar -q contract fetch --id ${contractId} --network ${NETWORK} --out-file ${tmpPath}`;
+    await $`stellar -q contract fetch --id ${contractId} --rpc-url ${RPC_URL} --network-passphrase ${NETWORK_PASSPHRASE} --out-file ${tmpPath}`;
     return true;
   } catch {
     return false;
@@ -277,7 +277,7 @@ if (shouldEnsureMock) {
     console.log(`Deploying ${mock.packageName}...`);
     try {
       const result =
-        await $`stellar contract deploy --wasm ${mock.wasmPath} --source-account ${adminSecret} --network ${NETWORK}`.text();
+        await $`stellar contract deploy --wasm ${mock.wasmPath} --source-account ${adminSecret} --rpc-url ${RPC_URL} --network-passphrase ${NETWORK_PASSPHRASE}`.text();
       mockGameHubId = result.trim();
       deployed[mock.packageName] = mockGameHubId;
       console.log(`✅ ${mock.packageName} deployed: ${mockGameHubId}\n`);
@@ -295,13 +295,13 @@ for (const contract of contracts) {
   try {
     console.log("  Installing WASM...");
     const installResult =
-      await $`stellar contract install --wasm ${contract.wasmPath} --source-account ${adminSecret} --network ${NETWORK}`.text();
+      await $`stellar contract upload --wasm ${contract.wasmPath} --source-account ${adminSecret} --rpc-url ${RPC_URL} --network-passphrase ${NETWORK_PASSPHRASE}`.text();
     const wasmHash = installResult.trim();
     console.log(`  WASM hash: ${wasmHash}`);
 
     console.log("  Deploying and initializing...");
     const deployResult =
-      await $`stellar contract deploy --wasm-hash ${wasmHash} --source-account ${adminSecret} --network ${NETWORK} -- --admin ${adminAddress} --game-hub ${mockGameHubId}`.text();
+      await $`stellar contract deploy --wasm-hash ${wasmHash} --source-account ${adminSecret} --rpc-url ${RPC_URL} --network-passphrase ${NETWORK_PASSPHRASE} -- --admin ${adminAddress} --game-hub ${mockGameHubId}`.text();
     const contractId = deployResult.trim();
     deployed[contract.packageName] = contractId;
     console.log(`✅ ${contract.packageName} deployed: ${contractId}\n`);
