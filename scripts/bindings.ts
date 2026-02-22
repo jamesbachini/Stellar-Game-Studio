@@ -51,8 +51,14 @@ if (selection.unknown.length > 0 || selection.ambiguous.length > 0) {
 const contractsToBind = selection.contracts;
 const contractIds: Record<string, string> = {};
 
+let rpcUrl = 'https://soroban-testnet.stellar.org';
+let networkPassphrase = 'Test SDF Network ; September 2015';
+
 if (existsSync("deployment.json")) {
   const deploymentInfo = await Bun.file("deployment.json").json();
+  if (deploymentInfo?.rpcUrl) rpcUrl = deploymentInfo.rpcUrl;
+  if (deploymentInfo?.networkPassphrase) networkPassphrase = deploymentInfo.networkPassphrase;
+
   if (deploymentInfo?.contracts && typeof deploymentInfo.contracts === 'object') {
     Object.assign(contractIds, deploymentInfo.contracts);
   } else {
@@ -63,6 +69,9 @@ if (existsSync("deployment.json")) {
   }
 } else {
   const env = await readEnvFile('.env');
+  rpcUrl = getEnvValue(env, 'VITE_SOROBAN_RPC_URL', rpcUrl);
+  networkPassphrase = getEnvValue(env, 'VITE_NETWORK_PASSPHRASE', networkPassphrase);
+
   for (const contract of contracts) {
     contractIds[contract.packageName] = getEnvValue(env, `VITE_${contract.envKey}_CONTRACT_ID`);
   }
