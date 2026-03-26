@@ -51,8 +51,14 @@ if (selection.unknown.length > 0 || selection.ambiguous.length > 0) {
 const contractsToBind = selection.contracts;
 const contractIds: Record<string, string> = {};
 
+let rpcUrl = 'https://soroban-testnet.stellar.org';
+let networkPassphrase = 'Test SDF Network ; September 2015';
+
 if (existsSync("deployment.json")) {
   const deploymentInfo = await Bun.file("deployment.json").json();
+  if (deploymentInfo?.rpcUrl) rpcUrl = deploymentInfo.rpcUrl;
+  if (deploymentInfo?.networkPassphrase) networkPassphrase = deploymentInfo.networkPassphrase;
+
   if (deploymentInfo?.contracts && typeof deploymentInfo.contracts === 'object') {
     Object.assign(contractIds, deploymentInfo.contracts);
   } else {
@@ -63,6 +69,9 @@ if (existsSync("deployment.json")) {
   }
 } else {
   const env = await readEnvFile('.env');
+  rpcUrl = getEnvValue(env, 'VITE_SOROBAN_RPC_URL', rpcUrl);
+  networkPassphrase = getEnvValue(env, 'VITE_NETWORK_PASSPHRASE', networkPassphrase);
+
   for (const contract of contracts) {
     contractIds[contract.packageName] = getEnvValue(env, `VITE_${contract.envKey}_CONTRACT_ID`);
   }
@@ -84,7 +93,18 @@ for (const contract of contractsToBind) {
   const contractId = contractIds[contract.packageName];
   console.log(`Generating bindings for ${contract.packageName}...`);
   try {
-    await $`stellar contract bindings typescript --contract-id ${contractId} --output-dir ${contract.bindingsOutDir} --network testnet --overwrite`;
+    let success = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await $`stellar contract bindings typescript --contract-id ${contractId} --output-dir ${contract.bindingsOutDir} --rpc-url ${rpcUrl} --network-passphrase ${networkPassphrase} --overwrite`;
+        success = true;
+        break;
+      } catch (e) {
+        if (attempt === 5) throw e;
+        console.log(`  ⏳ RPC indexing contract, retrying in 3s (attempt ${attempt}/5)...`);
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
     console.log(`✅ ${contract.packageName} bindings generated\n`);
   } catch (error) {
     console.error(`❌ Failed to generate ${contract.packageName} bindings:`, error);
